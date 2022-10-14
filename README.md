@@ -14,3 +14,6 @@ $\quad$• LDA, QDA
 $\quad$• Decision Trees, Random Forests
 
 $\quad$• PCA, Clustering, K-Means
+
+### Programming Language & Tools
+R, RMarkdown
