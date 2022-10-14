@@ -1,0 +1,271 @@
+### Problem 1
+# (a)
+```{r}
+library(datasets)
+library(caret)
+data("EuStockMarkets")
+
+```
+
+```{r}
+library(ggplot2)
+library(reshape2)
+ftse <- EuStockMarkets[,4]
+df_ftse <- data.frame(time=seq(1,length(ftse)),ftse=ftse)
+model1 <- lm(ftse~poly(time,4),data=df_ftse)
+model2 <- lm(ftse~poly(time,8),data=df_ftse)
+model3 <- lm(ftse~poly(time,12),data=df_ftse)
+df_pred <- data.frame(time=seq(1,length(ftse)),pred1=predict(model1,df_ftse),pred2=predict(model2,df_ftse),pred3=predict(model3,df_ftse))
+df_pred <- melt(df_pred, id=c('time'))
+
+ggplot(df_pred)+
+  geom_point(data=df_ftse,aes(x=time,y=ftse),size=0.1)+
+  geom_line(aes(x=time,y=value,color=variable),size=1)
+```
+# Comment
+The increasing trend of ftse is detected by the polynomial model. Models with degree of 8 or 12 can catch some low-frequency fluctuations. But high-frequency fluctuations are not detected. In this case, the models didn't show overfitting signs of oscillations.
+
+# (b)
+```{r}
+library(glmnet)
+
+x = model.matrix(ftse~poly(time,12),df_ftse)
+y = as.numeric(ftse)
+
+models = cv.glmnet(x,y,alpha=0)
+best_lambda = models$lambda.1se
+i0 <- which(models$lambda==best_lambda)
+best_model <- glmnet(x,y,alpha=0, lambda=best_lambda)
+pred = predict(best_model, x)
+df_pred1 <- data.frame(time=seq(1,length(ftse)),ftse=ftse,pred=pred)
+ggplot(df_pred1)+
+  geom_point(aes(x=time,y=ftse),size=0.1)+
+  geom_line(aes(x=time,y=pred,color='ridge'),size=1)
+```
+# Comment
+It catches the overall trend of the FTSE data, and it's similar to the 12-degree polynomial model without l2 penalties.
+
+### Problem 2
+
+```{r}
+advertising <- read.csv('Advertising.csv')
+train <- createDataPartition(advertising$Sales,p=0.7)$Resample1
+test = seq(1,length(advertising$Sales))[-train]
+
+train_set <- advertising[train,]
+test_set <- advertising[test,]
+```
+
+# (a)
+```{r}
+library(splines)
+library(Metrics)
+library(gam)
+model6 <- gam(Sales~s(TV,df=2)+s(Radio,df=2)+s(Newspaper,df=2),data=train_set)
+model7 <- gam(Sales~s(TV,df=3)+s(Radio,df=3)+s(Newspaper,df=3),data=train_set)
+model8 <- gam(Sales~s(TV,df=4)+s(Radio,df=4)+s(Newspaper,df=4),data=train_set)
+model9 <- gam(Sales~s(TV,df=5)+s(Radio,df=5)+s(Newspaper,df=5),data=train_set)
+model10 <- gam(Sales~s(TV,df=6)+s(Radio,df=6)+s(Newspaper,df=6),data=train_set)
+model11 <- lm(Sales~.-X,data=train_set)
+
+
+error_train=c(rmse(predict(model6,train_set),train_set$Sales),rmse(predict(model7,train_set),train_set$Sales),rmse(predict(model8,train_set),train_set$Sales),rmse(predict(model9,train_set),train_set$Sales),rmse(predict(model10,train_set),train_set$Sales),rmse(predict(model11,train_set),train_set$Sales))
+
+error_test=c(rmse(predict(model6,test_set),test_set$Sales),rmse(predict(model7,test_set),test_set$Sales),rmse(predict(model8,test_set),test_set$Sales),rmse(predict(model9,test_set),test_set$Sales),rmse(predict(model10,test_set),test_set$Sales),rmse(predict(model11,test_set),test_set$Sales))
+
+error_train
+error_test
+```
+# Comment:
+The GAM models have smaller errors both on training set and testing set.
+
+# (b)
+I think there's no evidence of overfitting. First the difference between errors on training set and testing set are not significant. Second we can see that as the degree increases, the error on the testing set is decreasing.
+
+# (c)
+The GAM with spline components of 5 degree. It has the lowest training and testing error.
+
+### Problem 3
+
+
+```{r}
+library(MASS)
+data(Boston)
+```
+
+# (a)
+```{r}
+x = model.matrix(medv~.,Boston)
+y = Boston$medv
+
+models = glmnet(x,y)
+plot(models,xvar='lambda',label=TRUE)
+coef(glmnet(x,y,alpha=1,lambda=0.8))
+```
+# Comment
+The last five predictors are chas, rm, ptratio, black, lstat.
+
+# (b)
+```{r}
+models = cv.glmnet(x,y,nfolds=10)
+best_lambda = models$lambda.1se
+i0=which(models$lambda==best_lambda)
+sqrt(models$cvm[i0]*dim(x)[1]/(dim(x)[1]-2))
+```
+
+# (c)
+```{r}
+x = scale(x)
+models = glmnet(x,y)
+plot(models,xvar='lambda',label=TRUE)
+coef(glmnet(x,y,alpha=1,lambda=0.8))
+```
+# Comment
+The last five predictors are chas, rm, ptratio, black, lstat. They are the same as that in (a).
+
+# (d)
+```{r}
+models = cv.glmnet(x,y,nfolds=10)
+best_lambda = models$lambda.1se
+i0=which(models$lambda==best_lambda)
+sqrt(models$cvm[i0]*dim(x)[1]/(dim(x)[1]-2))
+```
+
+# Comment:
+The residual standard error is bigger. Rescaling doesn't lead to a better performing model.
+
+### Problem 4
+
+```{r}
+bike <- read.csv('SeoulBikeData.csv')
+bike_clean <- bike[bike$Functioning.Day=='Yes',]
+bike_clean <- subset(bike_clean, select=-c(Date,Hour, Seasons, Holiday, Functioning.Day))
+bike_clean <- na.omit(bike_clean)
+colnames(bike_clean)<-c('RentedBike','Temperature','Humidity','WindSpeed','Visibility','DewPointTemperature','SolarRadiation','Rainfall','Snowfall')
+head(bike_clean)
+```
+
+# (a)
+```{r}
+library(MLmetrics)
+model12 <- lm(RentedBike~.,bike_clean)
+MSE(bike_clean$RentedBike,predict(model12,bike_clean))
+summary(model12)
+```
+# Comment:
+The MSE is 484.1, the most influential variables are Temperature, Humidity, WindSpeed, SolarRadiation, Rainfall.
+
+# (b)
+```{r}
+x=model.matrix(RentedBike~.,bike_clean)
+y=bike_clean$RentedBike
+models <- cv.glmnet(x,y,alpha=0)
+best_lambda=models$lambda.1se
+i0=which(models$lambda==best_lambda)
+error=models$cvm[i0]
+
+best_model=glmnet(x,y,alpha=0,lambda=best_lambda)
+error
+```
+
+# (c)
+```{r}
+models <- cv.glmnet(x,y)
+best_lambda=models$lambda.1se
+i0=which(models$lambda==best_lambda)
+error=models$cvm[i0]
+
+
+best_model=glmnet(x,y,lambda=best_lambda)
+coef(best_model)
+error
+```
+# Comment
+The remaining variables are Temperature, Humidity, WindSpeed, Visibility, SolarRadiation, Rainfall. The CV MSE is smaller compared to ridge and a plain linear model, which indicates better performance.
+
+# (e)
+As we look into the linear and lasso models, we can see that the most important factors for high bike share usage are Temperature, Humidity, WindSpeed, Solar Radiation, Rainfall. The bike rental company can have more bikes for rent for the place where the environment is better.(Higher temperature, lower humidity, etc.) And they can schedule routine examinations on the days when environment is not suitable for riding a bike.(Lower temperature, higher humidity, etc.)
+
+### Problem 5
+
+# (a)
+$\hat{g_2}$ will have the smaller training RSS.
+When $\lambda\rightarrow\infty$, in the problem of $g_1$, we have $g^{(3)}(x)=0$ always existing, so $\hat{g_1}$ is a polynomial wit degrees no more than 3; similarly, we can know $\hat{g_2}$ is a polynomial with degrees no more than 4. Since the restriction set of the second problem is larger than the first, the value corresponding objective function(training RSS) to minimize is smaller.
+# (b)
+We cannot decide. We have no information of testing dataset when we solve the problems on the training dataset. We can only assert that if $\hat{g_2}$ is an overfitting model, it probably will have larger test RSS than $\hat{g_1}$. Otherwise, it will have smaller test RSS than $\hat{g_1}$.
+# (c)
+They will have the same training RSS and testing RSS since they are the same solution of the same problem.
+
+### Problem 6
+```{r}
+set.seed(325626)
+X <- runif(100)
+eps <- rnorm(100)
+Y <- sin(12*(X + 0.2)) / (X + 0.2) + eps
+generating_fn <- function(X) {sin(12*(X + 0.2)) / (X + 0.2)}
+df <- data.frame(X, Y)
+```
+
+```{r}
+ggplot(df, aes(x = X, y = Y)) +
+geom_point(alpha = 0.5) +
+stat_function(fun = generating_fn, aes(col = "Generating Function")) +
+scale_color_manual(values = "deepskyblue3") +
+theme(legend.position = "right", legend.title = element_blank())
+```
+# (a)
+# Comment
+Since $\lambda=\infty$, we have $g^{(m)}(x)=0$ always existing. In this case, $g(x)=0$
+```{r}
+ggplot(df, aes(x = X, y = Y)) + geom_point(alpha = 0.5) +stat_function(fun = generating_fn, aes(col = "Generating Function")) + geom_hline(yintercept=0,color='red')+scale_color_manual(values = "deepskyblue3")+ theme(legend.position = "right",legend.title = element_blank())
+```
+# (b)
+# Comment
+In this case, $g^{(1)}(x)=0$. That leads to $g(x)$ being a constant function.
+```{r}
+model <- lm(Y~1,df)
+coefi <- model$coefficients
+
+ggplot(df, aes(x = X, y = Y)) + geom_point(alpha = 0.5) +stat_function(fun = generating_fn, aes(col = "Generating Function")) + geom_hline(yintercept=coefi[1],color='red')+scale_color_manual(values = "deepskyblue3")+ theme(legend.position = "right", legend.title = element_blank())
+```
+
+# (c)
+# Comment
+In this case, $g^{(2)}(x)=0$. That leads to $g(x)$ being a linear function. We perform linear regression the dataset.
+```{r}
+
+model <- lm(Y~X,df)
+coefi <- model$coefficients
+ggplot(df, aes(x = X, y = Y)) + geom_point(alpha = 0.5) +stat_function(fun = generating_fn, aes(col = "Generating Function")) + geom_abline(yintercept=coefi[1], slope =coefi[2],color='red')+scale_color_manual(values = "deepskyblue3")+ theme(legend.position = "right", legend.title = element_blank())
+```
+
+# (d)
+# Comment
+In this case, $g^{(3)}(x)=0$. That leads to $g(x)$ being a polynomial with degrees no more than 2. We perform polynomial regression the dataset.
+```{r}
+xx = seq(min(X),max(X),(max(X)-min(X))/100)
+model <- lm(Y~poly(X,2),df)
+df_temp <- data.frame(X=xx)
+pred <- predict(model, df_temp)
+df_temp['Y'] = pred
+
+ggplot(df, aes(x = X, y = Y)) + geom_point(alpha = 0.5) +stat_function(fun = generating_fn, aes(col = "Generating Function")) + geom_line(data=df_temp,aes(x=X,Y=Y,color='red'))+ theme(legend.position = "right", legend.title = element_blank())
+```
+
+# (e)
+# Comment
+In this case, we only need minimize the RSS. And we have no restrictions, so any spline that pass through each point in the dataset will be one solution.
+```{r}
+model <- lm(Y~bs(X,knots=df$X),df)
+df_temp <- data.frame(X=xx)
+pred <- predict(model, df_temp)
+df_temp['Y'] = pred
+
+ggplot(df, aes(x = X, y = Y)) + geom_point(alpha = 0.5) +stat_function(fun = generating_fn, aes(col = "Generating Function")) + geom_line(data=df_temp,aes(x=X,Y=Y,color='red'))+ theme(legend.position = "right", legend.title = element_blank())
+```
+
+# (f)
+```{r}
+model = smooth.spline(X,Y)
+model$lambda
+```

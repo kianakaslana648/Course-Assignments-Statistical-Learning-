@@ -1,0 +1,125 @@
+```{r}
+library(nnet)
+#tinytex::install_tinytex()
+```
+
+####
+In your group, complete the exercises below. It is recommended that you complete an Rmd document or similar. Each group member must submit their own HTML (or PDF) file by the end of class. 
+
+
+### 1. Tensorflow Playground
+#### A
+
+<https://playground.tensorflow.org/#activation=tanh&batchSize=10&dataset=circle&regDataset=reg-plane&learningRate=0.03&regularizationRate=0&noise=0&networkShape=4,2&seed=0.62835&showTestData=false&discretize=false&percTrainData=50&x=true&y=true&xTimesY=false&xSquared=false&ySquared=false&cosX=false&sinX=false&cosY=false&sinY=false&collectStats=false&problem=classification&initZero=false&hideText=false>
+
+Use the playground to create an architecture for logistic regression. We'll have two inputs and one output. How many hidden layers are there?
+
+(i) Use the training dataset where the two classes are easily separable. Train your model. How well does your classifier do?
+(ii) What are your fitted weights? Use those weights to compute (by hand) what the predicted probability is, verify your intuition.
+
+# Comment:
+(1) For the gaussian data, I trained a model with no hidden layers and it classified all the points correctly.
+(2) coef1 = 0.67 and coef2 = 1. With a point of (-2,-2) we can compute the final value as -3.34. It's in the orange area.
+
+#### B
+
+(i) Now use the bullseye data and try to fit this data with logistic regression. Does it work?
+(ii) Try using different transformations of the data. See if you can get logistic regression to fit this data.
+(iii) Now go back to the original data features. Add a hidden layer with two units and fit the model. Can it work perfectly? Try adding another unit to the hidden layer. Comment on what is the simplest model that can still fit this dataset. 
+
+# Comment
+(1) If we only use X1, X2, it doesn't work anyway.
+(2) We can include X1^2, X2^2, X1X2 in the logistic regression, then it worked perfectly.
+(3) The model with a hidden layer of 2 units cannot work perfectly. The model with a hidden layer of 3 units can work perfectly. That's the simplest model that can fit this dataset.
+
+#### C
+(i) Try one of the very difficult datasets (I found the spiral to be the most difficult). Try any architectures and activation functions that you want. How well can you do? What do you notice? Include a screenshot of your final model architecture.
+
+![Spiral Data](C:/Users/cml/Desktop/GU Courses/ANLY 512/lecture 9/Spiral.png)
+
+# Comment:
+This model perfectly fit the spiral data.
+
+### 2 
+
+Let's verify that we understand the similarities between Neural Network and other models that we've talked about. Specifically, we'll establish that Multiple Regression (and Logistic Regression) are special cases of Neural Networks under very simple architectures.
+
+First, we generate some sample data for simple regression.
+```{r}
+x1 <- rnorm(100)
+x2 <- rnorm(100)
+y <- 5 +  2*x1 + -3*x2 + rnorm(100) 
+plot(x1,y)
+
+df = data.frame(Y=y, X1 = x1, X2 = x2)
+```
+
+(a) Fit a linear model to this data in order to estimate the regression coefficients $\beta_0$ and $\beta_1$. Do this using built-in R methods we've learned previously.
+
+```{r}
+model1 <- lm(Y~.,df)
+model1$coefficients
+```
+(b) Let's do the same with a neural net, but one with a simple architecture. A neural net with no hidden layer just describes an architecture where each input feature is linearly combined (via some weights) to create an output feature. This will be identical to Multiple Regression if we have no non-linear transformations along the way. Create such a neural net with the nnet package and confirm that you can recover the right parameter weights. 
+
+With nnet, to do regression output (as opposed to classification output), use the argument "linout = TRUE". Also, use the argument "skip = TRUE" to confirm that you intend to _skip_ the hidden layer and just go straight from the input to the output layer. Comments on the neural net architecture and weights, do they match your expectation?
+
+```{r}
+library(MLmetrics)
+model2 <- nnet(Y~.,data=df,size=0, linout=TRUE,skip=TRUE)
+summary(model2)
+RMSE(predict(model2, df),df$Y)
+```
+# Comment:
+Overall, the net architecture and weights match the expectation in (b).
+
+(c)
+But we can choose any ANN architecture we like, we can have a complex an nonlinear model. Choose a model with a non-zero hidden layer and fit. Comment on the resulting error and model.
+
+```{r}
+model3 <- nnet(Y~.,data=df,size=c(2),decay = 0.001, maxit = 100, rang = 0.05)
+summary(model3)
+RMSE(predict(model3,df),df$Y)
+```
+# Comment:
+This complex model contains nonlinear activation functions which is not fit for the original dataset. Thus the error becomes larger even if the model is more complex.
+
+### 3
+Neural Networks are often referred to as "universal function approximators", which means if you have a big enough neural network, then it will be flexible enough to fit any function you wish. 
+
+```{r}
+
+sinc = function(x){x*sin(x)} # Define the function 
+
+xx <- seq(-20,20,by=.1) # vector of x variables for plotting
+mydf = data.frame(x=xx, y = sinc(xx))
+
+plot(y ~x, data = mydf, type = 'l')
+
+
+# Now we will create a dataset by drawing a few samples from the domain of this function and evaluating this function at those locations.
+x <- runif(20, min = -20, max = 20 )
+mydf.train = data.frame(x = x, y = sinc(x))
+
+plot(y ~x, data = mydf.train, lwd = 2, col = 2)
+
+# Train network and make predictions
+# Note linout = T
+net1 <- nnet(y ~x, data = mydf.train, size = 2, decay = .001, maxit = 2000, linout = T)
+pred <- predict(net1, newdata = mydf, type = "r")
+
+# Make a plots of predictions, overlaid on the datapoints and the true function
+lines(xx,pred, col = 2)
+
+```
+```{r}
+net2 <- nnet(y ~x, data = mydf.train, size = 40, decay = .001, maxit = 2000, linout = T)
+pred <- predict(net2, newdata = mydf, type = "r")
+plot(y ~x, data = mydf.train, lwd = 2, col = 2)
+lines(xx,pred, col = 2)
+```
+Repeat the above by changing the hyperparameters of the model such as the size of the hidden layer. Plot the results. Be sure to include an example of a small model (such as size=2) and a large model (such as size=40). Comment on what you saw and how it relates to the bias-variance tradeoff. Thinking back to the phrase "universal function approximator", what would it take for a neural network to truly fit any complex function we wish?
+
+# Comment:
+
+When there are more hidden layers, the model becomes more complex, with larger variance and smaller bias. If we can train a model with hidden layers of any number and scale, then we can fit any complex function we wish.

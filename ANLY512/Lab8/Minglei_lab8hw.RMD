@@ -1,0 +1,107 @@
+### Problem 1
+#(1)
+```{r}
+library(ISLR)
+library(MASS)
+library(tidyverse)
+library(caret)
+library(mvtnorm)
+library(plotly)
+```
+
+```{r}
+data(Smarket)
+logistic_model=glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5, data=Smarket, family=binomial)
+summary(logistic_model)
+```
+
+```{r}
+predict(logistic_model, type="response")[1:10]
+Smarket$Direction[1:10]
+```
+```{r}
+pred_prob = predict(logistic_model, type="response")
+#pred = as.factor(ifelse(pred_prob>0.5,'Up','Down'))
+#length(pred)
+df1 <- data.frame(true=Smarket$Direction,pred_prob=pred_prob)
+```
+
+#(2)
+```{r}
+confusion_matrix <- function(df, thres){
+  df$pred_prob <- as.factor(ifelse(df$pred_prob>thres,'Up','Down'))
+  mat=table(df)
+  return(mat/rowSums(mat))
+}
+confusion_matrix(df1,0.5)
+```
+#(3)
+```{r}
+sim_conf<-function(df, thres){
+  df$pred_prob <- as.factor(ifelse(df$pred_prob>thres,'Up','Down'))
+  mat=table(df)
+  mat=mat/rowSums(mat)
+  return(c(mat[2,2],mat[1,2]))
+}
+sim_conf(df1,0.624)
+```
+
+#(4)
+```{r}
+thresholds <- seq(0.404,0.624,0.001)
+
+record = matrix(c(1,1),nrow=1,ncol=2)
+for(i in 1:length(thresholds)){
+  record = rbind(record,sim_conf(df1,thresholds[i]))
+}
+record = rbind(record, c(0,0))
+
+```
+#(5)
+```{r}
+plot(record[,2],record[,1],type='l')
+```
+
+### Problem 2
+```{r}
+Sigma <- matrix(c(1,0,0,1),2,2)
+df <-as.data.frame(rbind( 
+    mvrnorm(100, mu = c(1,1), Sigma ),
+    mvrnorm(100, mu = c(-1,-1), Sigma),
+    mvrnorm(100, mu = c(-2,2), Sigma )
+))
+
+df["Y"]<- as.factor(c(rep(1, 100), rep(2, 100), rep(3, 100)))
+plot(df$V1, df$V2, col=df$Y)
+```
+#(1)
+```{r}
+library(MASS)
+library(caret)
+
+train = createDataPartition(df$Y,p=0.7)$Resample1
+test=seq(1,300)[-train]
+
+lda.fit = lda(Y~V1+V2,data=df,subset=train)
+lda.fit
+```
+#(2)
+Comment:
+There is bias from the true means. But overall the estimated group means are close to the true means.
+
+#(3)
+```{r}
+lda.pred=predict(lda.fit,df[test,])
+sum(lda.pred$class==df$Y[test])/length(test)
+dim(lda.pred$posterior)
+```
+#Comment
+The posterior matrix contains the 3 probabilities computed by three posterior gaussian models for each point.
+The points that are in the top-right corner have high posterior probabilities for class 1. The points that are in the top-left corner have high posterior probabilities for class 3.
+
+#(4)
+```{r}
+library(klaR)
+partimat(Y~V1+V2,df,method='lda')
+
+```

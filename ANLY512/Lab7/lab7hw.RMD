@@ -1,0 +1,112 @@
+### Problem 1
+```{r}
+require(ISLR)
+require(MASS)
+require(pROC)
+set.seed(3315)
+```
+
+```{r}
+load("mnist_all.RData")
+index.35.train <- train$y == 3 | train$y == 5
+train.35 <- as.data.frame(train$x[index.35.train,])
+train.35$z <- as.numeric(train$y[index.35.train] == 5)
+index.35.test <- test$y == 3 | test$y == 5
+test.35 <- as.data.frame(test$x[index.35.test,])
+test.35$z <- as.numeric(test$y[index.35.test] == 5)
+```
+
+```{r}
+train.var <- apply(train.35[,1:784],2,FUN = sd)
+train.order = order(train.var, decreasing = T)
+head(train.order, 10)
+```
+```{r}
+model.25 <- glm(z ~ V403, data = train.35, family = binomial)
+summary(model.25)
+```
+#Comment
+
+Instead of using all the pixels, utilizing only the important pixels is meaningful to reduce computation complexity.
+### Problem 2
+
+#(a)
+```{r}
+library(ISLR)
+data(Weekly)
+head(Weekly)
+```
+
+```{r}
+library(ggplot2)
+ggplot(Weekly, aes(x=Lag1,y=Lag2,color=Direction))+
+  geom_point()
+ggplot(Weekly, aes(x=Lag2,y=Volume,color=Direction))+
+  geom_point()
+```
+```{r}
+library(dplyr)
+down_week=filter(Weekly,Direction=='Down')
+up_week=filter(Weekly,Direction=='Up')
+
+t.test(down_week$Lag1,up_week$Lag1,'greater')
+t.test(down_week$Lag2,up_week$Lag2,'less')
+t.test(down_week$Lag3,up_week$Lag3,'two.sided')
+t.test(down_week$Lag4,up_week$Lag4,'two.sided')
+t.test(down_week$Lag5,up_week$Lag5,'two.sided')
+t.test(down_week$Volume,up_week$Volume,'two.sided')
+```
+
+# Comment
+From the scatter plot, we can see the points of different directions are highly overlapping. And from the t-test we can see there are evidences in the difference between Lag1 and Lag2 of different directions.
+
+#(b)
+```{r}
+library(stats)
+simple_weekly = Weekly[,c('Lag1','Lag2','Lag3','Lag4','Lag5','Volume')]
+simple_weekly['Direction'] =ifelse(Weekly$Direction=='Up',1,0)
+simple_weekly$Direction = as.factor(simple_weekly$Direction)
+
+model1 <- glm(Direction~Lag1+Lag2+Lag3+Lag4+Lag5+Volume, data=simple_weekly, family='binomial')
+summary(model1)
+```
+
+# Comment
+Only Lag2 appears to be statistically significant.
+
+#(c)
+```{r}
+library(caret)
+pred <- as.factor(ifelse(predict(model1,type='link')>0,1,0))
+
+confusionMatrix(pred,simple_weekly$Direction)
+```
+
+#Comment 
+Many false positives emerge.
+
+#(d)
+```{r}
+train=filter(Weekly, Year %in% seq(1990,2008))
+test=filter(Weekly, Year %in% seq(2009,2010))
+
+simple_train =  train[,c('Lag1','Lag2','Lag3','Lag4','Lag5','Volume')]
+simple_train['Direction'] = ifelse(train$Direction=='Up',1,0)
+simple_train$Direction = as.factor(simple_train$Direction)
+
+simple_test =  test[,c('Lag1','Lag2','Lag3','Lag4','Lag5','Volume')]
+simple_test['Direction'] = ifelse(test$Direction=='Up',1,0)
+simple_test$Direction = as.factor(simple_test$Direction)
+
+
+
+model2 <- glm(Direction~Lag2, data=simple_train, family='binomial')
+
+pred2 <- as.factor(ifelse(predict(model2, simple_test)>0,1,0))
+
+cm<-confusionMatrix(pred2,simple_test$Direction)
+```
+
+```{r}
+cm$overall['Accuracy']
+```

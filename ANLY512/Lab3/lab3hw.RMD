@@ -1,0 +1,80 @@
+### 1
+```{r}
+carseats<-read.csv('Carseats.csv')
+model1=lm(Sales~.,data=carseats)
+summary(model1)
+```
+Residual Standard Error: 1.019
+```{r}
+model2<-lm(Sales~.-Population-Education-Urban-US,data=carseats)
+summary(model2)
+```
+Residual Standard Error: 1.019
+
+```{r}
+library(caret)
+samples<-createDataPartition(carseats$Sales,p=0.8,list=FALSE)
+train=carseats[samples,]
+test=carseats[-samples,]
+model3<-lm(Sales~.,data=train)
+prediction1<-predict(model3,test)
+sum((prediction1-test[,"Sales"])^2)
+
+model4<-lm(Sales~.-Population-Education-Urban-US,data=test)
+prediction2<-predict(model4,test)
+sum((prediction2-test[,"Sales"])^2)
+```
+Actually the testing error of the second model is less than the first one. It's better.
+
+```{r}
+library(boot)
+error5=rep(0,2)
+model5<-glm(Sales~.,data=carseats)
+model6<-glm(Sales~.-Population-Education-Urban-US,data=carseats)
+error5[1]=cv.glm(carseats,model5,K=5)$delta[1]
+error5[2]=cv.glm(carseats,model6,K=5)$delta[1]
+error5
+```
+```{r}
+error10=rep(0,2)
+error10[1]=cv.glm(carseats,model5,K=10)$delta[1]
+error10[2]=cv.glm(carseats,model6,K=10)$delta[1]
+error10
+```
+
+```{r}
+loocv=function(fit){
+  h=lm.influence(fit)$h
+  return(mean((residuals(fit)/(1-h))^2)) 
+}
+error_one=rep(0,2)
+error_one[1]=loocv(model5)
+error_one[2]=loocv(model6)
+error_one
+```
+Actually the results of 5-fold, 10-fold and LOOCV all indicate that the second model is a better one.
+
+###2
+```{r}
+mydf = data.frame(x = runif(100,min = -10, max = 10))
+mydf$y = sin(mydf$x) + .1*mydf$x^2 + rnorm(100)
+plot(y ~ x, data = mydf)
+```
+```{r}
+model7<-glm(y~x,data=mydf)
+error7=cv.glm(mydf,model7,K=10)$delta[1]
+error7
+```
+```{r}
+model8<-glm(y~poly(x,2),data=mydf)
+error8=cv.glm(mydf,model8,K=10)$delta[1]
+error8
+```
+```{r}
+error=rep(0,15)
+for(i in 1:15){
+  model<-glm(y~poly(x,i),data=mydf)
+  error[i]=cv.glm(mydf,model,K=10)$delta[1]
+}
+error
+plot(error,xlab='order')

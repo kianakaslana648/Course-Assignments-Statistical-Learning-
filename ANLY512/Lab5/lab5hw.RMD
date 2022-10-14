@@ -1,0 +1,114 @@
+### Problem 1
+#(a)
+```{r}
+library(ISLR)
+library(glmnet)
+data(College)
+```
+
+```{r}
+split1<- sample(c(rep(0, 0.7 * nrow(College)), rep(1, 0.3 * nrow(College))))
+train<-College[split1==0,]
+test<-College[split1==1,]
+```
+
+#(b)
+```{r}
+model<-lm(Apps~.,data=train)
+pred<-predict(model,test[,names(test)!='Apps'])
+mean((pred-test$Apps)^2)
+```
+
+#(c)
+```{r}
+x3=model.matrix(Apps~.,College)
+y3=College$Apps
+cv_model3=cv.glmnet(x3,y3,alpha=0)
+
+best_lambda<-cv_model3$lambda.min
+
+x4=model.matrix(Apps~.,train)
+y4=train$Apps
+x_test=model.matrix(Apps~.,test)
+y_test=test$Apps
+model5<-glmnet(x4,y4,alpha=1,lambda=best_lambda)
+mean((predict(model5,x_test)-y_test)^2)
+```
+#(d)
+```{r}
+cv_model4=cv.glmnet(x3,y3,alpha=1)
+
+best_lambda<-cv_model4$lambda.min
+
+model6<-glmnet(x4,y4,alpha=1,lambda=best_lambda)
+mean((predict(model6,x_test)-y_test)^2)
+
+coef(model6)
+```
+
+### Problem 2
+```{r}
+library(MASS)
+```
+#(a)
+```{r}
+
+x=model.matrix(medv~.,Boston)
+y=Boston$medv
+```
+
+```{r}
+model1<-glmnet(x,y)
+plot(model1,xvar='lambda',label=TRUE)
+```
+
+```{r}
+model2<-glmnet(x,y,lambda=0.8)
+coef(model2)
+```
+
+Comment: The last five variables are chas, rm, ptratio, black, lstat.
+
+#(b)
+```{r}
+cv.model1=cv.glmnet(x,y)
+
+lambda_1se = cv.model1$lambda.1se
+i0 <- which(cv.model1$lambda == lambda_1se)
+rmse <- cv.model1$cvm[i0]
+lambda_1se
+rmse
+```
+
+#(c)
+```{r}
+bos<-data.frame(scale(Boston[,names(Boston)!='medv']))
+bos['medv']=Boston$medv
+x2=model.matrix(medv~.,bos)
+y2=bos$medv
+```
+
+```{r}
+model3<-glmnet(x2,y2)
+plot(model3,xvar='lambda',label=TRUE)
+```
+
+```{r}
+model4<-glmnet(x2,y2,lambda=0.7)
+coef(model4)
+```
+
+Comment: The last five variables are still chas, rm, ptratio, black, lstat.
+
+#(d)
+```{r}
+cv.model2=cv.glmnet(x2,y2)
+
+lambda_1se1 = cv.model2$lambda.1se
+i01 <- which(cv.model2$lambda == lambda_1se1)
+rmse1 <- cv.model2$cvm[i01]
+lambda_1se1
+rmse1
+```
+
+Comment: Similar to orginal scale. Rescaling didn't lead to a better performing model.

@@ -1,0 +1,123 @@
+# Prob 1
+### (a)
+```{r}
+library(rstudioapi)
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+library(MASS)
+data(Boston)
+```
+
+```{r}
+library(randomForest)
+library(permute)
+train_len = floor(dim(Boston)[1] * 0.70)
+dev_len = floor(dim(Boston)[1] * 0.15)
+test_len = dim(Boston)[1] - train_len - dev_len
+shuf_ind = shuffle(dim(Boston)[1])
+train = Boston[shuf_ind[1:train_len],]
+dev = Boston[shuf_ind[(train_len+1):(train_len+dev_len)],]
+test = Boston[shuf_ind[(train_len+dev_len+1):dim(Boston)[1]],]
+
+rf1 = randomForest(medv~., data=train, mtry=6, ntree=25)
+rf2 = randomForest(medv~., data=train, mtry=6, ntree=500)
+
+plot(rf1)
+plot(rf2)
+```
+
+### (b)
+```{r}
+r2 = matrix(0,3,500)
+r2_train = matrix(0,3,500) 
+ms = c(3,6,13)
+for(i in 1:3){
+  for(n in 1:500){
+    m = ms[i]
+    temp_rf = randomForest(medv~., data=train, mtry=m, ntree=n)
+    temp_pred = predict(temp_rf, dev)
+    r2[i, n] = 1-sum((temp_pred-dev$medv)**2)/sum((dev$medv-mean(dev$medv))**2)
+    temp_pred = predict(temp_rf, train)
+    r2_train[i, n] = 1-sum((temp_pred-train$medv)**2)/sum((train$medv-mean(train$medv))**2)
+  }
+}
+
+
+```
+
+```{r}
+plot(1, type='n',xlim=c(1,500),ylim=c(0.4,1),xlab='nTree', ylab='R2', main='R2 on dev')
+cl <- rainbow(3)
+
+for (i in 1:3){
+    lines(1:500,r2[i,],col = cl[i],type = 'l')
+}
+
+legend(400, 0.8, legend=c("m=sqrt(p)", "m=p/2", 'm=p'), col=cl, lty=1:3, cex=0.8)
+```
+```{r}
+plot(1, type='n',xlim=c(1,500),ylim=c(0.4,1),xlab='nTree', ylab='R2', main='R2 on train')
+cl <- rainbow(3)
+
+for (i in 1:3){
+    lines(1:500,r2_train[i,],col = cl[i],type = 'l')
+}
+
+legend(400, 0.8, legend=c("m=sqrt(p)", "m=p/2", 'm=p'), col=cl, lty=1:3, cex=0.8)
+```
+
+### (c)
+```{r}
+best_ind = which(r2 == max(r2), arr.ind = TRUE)
+best_ind[1] = ms[best_ind[1]]
+best_rf = randomForest(medv~., data=train, mtry=best_ind[1], ntree=best_ind[2])
+pred = predict(best_rf, test)
+one_r2 = 1-sum((pred-test$medv)**2)/sum((test$medv-mean(test$medv))**2)
+paste('mtry =', (best_ind)[1], 'ntree = ', best_ind[2])
+paste('Corresponding r2 on dev=',max(r2))
+paste('Corresponding r2 on test=',one_r2)
+```
+According to R2 on dev, the model is not overfitting too much.
+
+### (d)
+```{r}
+library(caret)
+Imp = varImp(best_rf)
+barplot(names.arg=rownames(Imp), las=2, height = Imp$Overall)
+```
+According to the variable importance plot, we can see top 2 significant predictors are rm and lstat.
+
+# Prob 2
+
+###(a)
+```{r}
+load('mnist_all.RData')
+library(stats)
+set.seed(2)
+model1 = kmeans(train$x, 2, nstart=20)
+
+
+pca.res <- prcomp(train$x)
+x1 = pca.res$x[,1]
+x2 = pca.res$x[,2]
+
+plot(x1, x2, col= model1$cluster+1, cex=0.05, main='First Two Components in Kmeans Clustering')
+```
+```{r}
+plot(x1, x2, col = train$y+1, cex= 0.01, main = 'First Two Components in Original Labels')
+legend(2000, 1000, legend=as.character(0:9), col=1:10, lty=1:10, cex=0.8)
+```
+According to the first 2 components and the corresponding kmeans clustering plot, 1, 4, 9 tend to be clustered together.
+
+```{r}
+model2 = kmeans(train$x, 10, nstart=20, algorithm='Lloyd')
+
+confusionMatrix(as.factor(model2$cluster), as.factor(train$y+1))
+```
+
+
+
+# Prob 3
+
+### (a)&(b)
+
+![Sketch](C:/Users\cml\Desktop\GU Courses\ANLY 512\lecture 12\prob3.jpg)

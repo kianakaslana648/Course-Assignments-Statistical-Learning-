@@ -1,0 +1,316 @@
+```{r}
+library(rstudioapi)
+setwd(dirname(rstudioapi::getActiveDocumentContext()$path))
+options(warn=-1)
+```
+
+# Problem 1
+Since we have a non-decreasing shape for the ROC curve in the sensitivity and reverse-specificity space. We can draw a sketch for the max-AUC and min-AUC cases.
+According to the sketch, we can compute the max AUC and min AUC are $\alpha\beta$ and $\alpha+\beta-\alpha\beta$.
+
+![Sketch](C:/Users\cml\Desktop\GU Courses\ANLY 512\lecture 9\1.jpg)
+
+# Problem 2
+```{r}
+library(dslabs)
+library(tidyverse)
+mnist <- read_mnist()
+
+ind_train = mnist$train$labels %in% c(1,3)
+train_X = mnist$train$images[ind_train,]
+train_y = mnist$train$labels[ind_train]
+train_y[train_y == 1] = 0
+train_y[train_y == 3] = 1
+
+ind_test = mnist$test$labels %in% c(1,3)
+test_X = mnist$test$images[ind_test,]
+test_y = mnist$test$labels[ind_test]
+test_y[test_y == 1] = 0
+test_y[test_y == 3] =1
+
+var_train = apply(train_X, 2, var)
+rem_train = (1:784)[var_train==0]
+var_test = apply(test_X, 2, var)
+rem_test = (1:784)[var_test==0]
+
+rem_ind = unique(c(rem_train, rem_test))
+res_ind = (1:784)[-rem_ind]
+
+train_X = train_X[, res_ind]
+test_X = test_X[, res_ind]
+```
+
+###(a)
+
+```{r}
+library(pROC)
+
+
+max_auc = 0
+max_ind = 0
+for(i in 1:dim(train_X)[2]){
+  df_temp = data.frame(y=train_y, X=train_X[,i])
+  temp_model = glm(y~.,df_temp, family='binomial')
+  prob = predict(temp_model, df_temp, type='response')
+  train_roc = roc(train_y~prob, quiet=T)
+  temp_auc = as.numeric(train_roc$auc)
+  if(temp_auc > max_auc){
+    max_auc = temp_auc
+    max_ind = i
+  }
+}
+max_ind
+res_ind[max_ind]
+```
+### (b)
+```{r}
+max_auc2 = 0
+max_ind2 = 0
+for(i in 1:dim(train_X)[2]){
+  if(i != max_ind){
+    df_temp = data.frame(y=train_y, X1=train_X[,max_ind],X2=train_X[,i])
+    temp_model = glm(y~.,df_temp, family='binomial')
+    prob = predict(temp_model, df_temp, type='response')
+    train_roc = roc(train_y~prob, quiet=T)
+    temp_auc = as.numeric(train_roc$auc)
+    if(temp_auc > max_auc2){
+      max_auc2 = temp_auc
+      max_ind2 = i
+    }
+  }
+}
+max_ind2
+res_ind[max_ind2]
+```
+### (c)
+```{r}
+df_temp = data.frame(y=train_y, X=train_X[,max_ind])
+model1 = glm(y~., df_temp, family='binomial')
+df_test = data.frame(y=test_y, X=test_X[,max_ind])
+prob1 = predict(model1, df_test, type='response')
+test_roc1 = roc(test_y~prob1,plot=TRUE,print.auc=TRUE)
+
+
+df_temp = data.frame(y=train_y, X1=train_X[,max_ind],X2=train_X[,max_ind2])
+model2 = glm(y~., df_temp, family='binomial')
+df_test = data.frame(y=test_y, X1=test_X[,max_ind],X2=test_X[,max_ind2])
+prob2 = predict(model2, df_test, type='response')
+test_roc2 = roc(test_y~prob2,plot=TRUE,print.auc=TRUE)
+
+```
+
+### Comment
+The second model is better than the first one according to AUC.
+
+### (d)
+We mark the number of features as N = 536. In part (b) I created N=536 models. In part (c) I created N-1=535 models. If we continue the process to find the best model with 10 pixels, we need to search through N + (N-1) + ... + (N-9) = 10N-45 = 5315 models. 
+
+# Problem 3
+
+```{r}
+ind_train = mnist$train$labels %in% c(4,7)
+train_X = mnist$train$images[ind_train,]
+train_y = mnist$train$labels[ind_train]
+train_y[train_y == 4] = 0
+train_y[train_y == 7] = 1
+
+ind_test = mnist$test$labels %in% c(4,7)
+test_X = mnist$test$images[ind_test,]
+test_y = mnist$test$labels[ind_test]
+test_y[test_y == 4] = 0
+test_y[test_y == 7] = 1
+```
+
+### (a)
+```{r}
+var_train = apply(train_X, 2, var)
+var_ord = order(var_train, decreasing=TRUE)
+var_train[var_ord[1:20]]
+cor(train_X[,var_ord[1:20]])
+
+### As we can see the 19th and the 20th variable in the matrix is a good choice.
+ind1 = var_ord[19]
+ind2 = var_ord[20]
+
+df_temp = data.frame(y = train_y, X1 = train_X[,ind1], X2 = train_X[,ind2])
+model3 <- glm(y~., df_temp, family = 'binomial')
+prob3 = predict(model3, df_temp, type='response')
+train_roc1 = roc(train_y~prob3, plot=TRUE, print.auc=TRUE)
+```
+### Comment:
+The model is not too bad according to the AUC.
+
+### (b)
+```{r}
+library(nnet)
+model4 <- nnet(y~.,df_temp, size=c(1),linout=T)
+prob4 = predict(model4, df_temp)
+train_roc2 = roc(train_y~prob4, plot=TRUE, print.auc=TRUE)
+```
+### Comment
+It's not better than the one in part (a).
+
+### (c)
+```{r}
+model5 <- nnet(y~.,df_temp, size=c(2),linout=T)
+prob5 = predict(model5, df_temp)
+train_roc3 = roc(train_y~prob5, plot=TRUE, print.auc=TRUE)
+
+model6 <- nnet(y~.,df_temp, size=c(5),linout=T)
+prob6 = predict(model6, df_temp)
+train_roc4 = roc(train_y~prob6, plot=TRUE, print.auc=TRUE)
+
+model7 <- nnet(y~.,df_temp, size=c(10),linout=T)
+prob7 = predict(model7, df_temp)
+train_roc5 = roc(train_y~prob7, plot=TRUE, print.auc=TRUE)
+
+```
+### Comment
+As we can see, the performance of the model is improved as the number of units increase according to AUC.
+
+### (d)
+```{r}
+df_test = data.frame(y = test_y, X1 = test_X[,ind1], X2 = test_X[,ind2])
+prob8 = predict(model5, df_test)
+test_roc3 = roc(test_y~prob8,plot=T,print.auc=T)
+
+prob9 = predict(model6, df_test)
+test_roc4 = roc(test_y~prob9,plot=T,print.auc=T)
+
+prob10 = predict(model7, df_test)
+test_roc5 = roc(test_y~prob10,plot=T,print.auc=T)
+```
+
+### Comment
+It seems that only the model with hidden layer of 5 units is overfitting.
+
+# Problem 4
+
+### (a)
+![Diagram](C:/Users\cml\Desktop\GU Courses\ANLY 512\lecture 9\2.jpg)
+
+### (b)
+$$h_1=tanh(4.2x_1-0.5x_2+1.2)=\frac{e^{4.2x_1-0.5x_2+1.2}-e^{-4.2x_1+0.5x_2-1.2}}{e^{4.2x_1-0.5x_2+1.2}+e^{-4.2x_1+0.5x_2-1.2}}$$
+$$h_2=tanh(20x_1-40x_2-30)=\frac{e^{20x_1-40x_2-30}-e^{-20x_1+40x_2+30}}{e^{20x_1-40x_2-30}+e^{-20x_1+40x_2+30}}$$
+
+### (c)
+$$z=tanh(-8h_1+1.5h_2+5)=\frac{e^{-8h_1+1.5h_2+5}-e^{8h_1-1.5h_2-5}}{e^{-8h_1+1.5h_2+5}+e^{8h_1-1.5h_2-5}}$$
+
+### (d)
+$$z=tanh(-8tanh(4.2x_1-0.5x_2+1.2)+1.5tanh(20x_1-40x_2-30)+5)$$
+
+# Problem 5
+```{r}
+library(MASS)
+data(Boston)
+boston = data.frame(Boston)
+boston$crim = ifelse(boston$crim>median(boston$crim),1,0)
+```
+
+### (a)
+```{r}
+library(permute)
+n_rows = dim(boston)[1]
+index = shuffle(n_rows)
+
+delta = floor(n_rows/10)
+prob_a = rep(0, n_rows)
+for(i in 1:10){
+  start = (i-1)*delta + 1
+  if(i < 10){
+    end = i *delta
+  }else{
+    end = n_rows
+  }
+  test = boston[index[start:end],]
+  train = boston[-index[start:end],]
+  
+  temp_model = glm(crim~., train, family='binomial')
+  temp_prob = predict(temp_model, test, type='response')
+  prob_a[index[start:end]] = temp_prob
+}
+
+```
+
+### (b)
+```{r}
+
+prob_b = rep(0, n_rows)
+for(i in 1:10){
+  start = (i-1)*delta + 1
+  if(i < 10){
+    end = i *delta
+  }else{
+    end = n_rows
+  }
+  test = boston[index[start:end],]
+  train = boston[-index[start:end],]
+  
+  temp_model = lda(crim~., train, family='binomial')
+  temp_prob = predict(temp_model, test, type='response')
+  prob_b[index[start:end]] = temp_prob$posterior[,2]
+}
+
+```
+
+
+### (c)
+```{r}
+prob_c = rep(0, n_rows)
+for(i in 1:10){
+  start = (i-1)*delta + 1
+  if(i < 10){
+    end = i *delta
+  }else{
+    end = n_rows
+  }
+  test = boston[index[start:end],]
+  train = boston[-index[start:end],]
+  
+  temp_model = qda(crim~., train, family='binomial')
+  temp_prob = predict(temp_model, test, type='response')
+  prob_c[index[start:end]] = temp_prob$posterior[,2]
+}
+
+```
+
+
+### (d)
+```{r}
+boston$crim = factor(boston$crim)
+
+roc_a = roc(boston$crim~prob_a)
+roc_b = roc(boston$crim~prob_b)
+roc_c = roc(boston$crim~prob_c)
+
+auc1 = as.character(round(as.numeric(roc_a$auc),4))
+auc2 = as.character(round(as.numeric(roc_b$auc),4))
+auc3 = as.character(round(as.numeric(roc_c$auc),4))
+
+
+plot(roc_a, col = 1, lty = 2, main = "ROC")
+plot(roc_b, col = 2, lty = 3, add = TRUE)
+plot(roc_c, col = 3, lty = 4, add = TRUE)
+
+
+legend(0.5, 0.6, legend=c(paste("Logistic",'AUC:',auc1), paste("LDA",'AUC:',auc2),paste("QDA",'AUC:',auc3)),
+       col=1:3, lty=2:4, cex=0.8)
+
+```
+### Comment
+As we can see in the plot, the best model for this case is the QDA model.
+
+
+# Problem 6
+
+### (a)
+In this case, we expect QDA to perform better on the training set since it's a more complex and flexible model. On the test set, we expect LDA to perform better than QDA, since QDA could be overfitting on the testing set.
+
+### (b)
+In this case, we expect QDA to perform better both on training set and testing set.
+
+### (C)
+In most cases when sample size n is large, QDA perform better than LDA because it's more complex and flexible.
+
+### (d)
+False. With small number of points, QDA could be overfitting and lead to high error on the test set.

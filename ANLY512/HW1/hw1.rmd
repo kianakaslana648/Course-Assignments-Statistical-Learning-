@@ -1,0 +1,213 @@
+### 2.4.4
+#(a) 
+(1) Judging whether a watermelon is sweet enough by its outer features. The response is a bool variable describing whether the sweetness of the watermelon exceed some value. The predictors are the appearance of the vines, the stripes on the peel, the tones when tapping on the watermelon, etc. The goal is prediction.
+(2) Judging the kind of a cat by its appearance. The response is the kind of the cat, whether it's a ragdoll cat or a maine coon or some other kinds. The predictors are the stripes of fur, length of legs, length of tails, weight, etc. The goal is prediction.
+(3) Judging the style of a song, whether it's a classic one or a modern one. The response is the style of the song. The predictors are the tones, the techniques, and the instruments used. The goal is prediction.
+#(b)
+(1) Predicting the stock price in a few days. Response is the stock price in the future. The predictors are the stock price in the past. The goal is prediction.
+(2) Predicting the movie sales of 2022. Response is the movie sale situation in 2022. The predictors are the movie sale situations in the past. The goal is prediction.
+(3) Predicting the number of detected covid-19 cases. Response is the number of detected covid-19 cases in the future. The predictors are the number of detected covid-19 cases in the past. the goal is prediction.
+#(c)
+(1) Analyzing different groups of customers by the online user data.
+(2) Analyzing different groups of audience watching certain TV programs.
+(3) Analyzing different groups of customers subscribing to some certain magazines.
+
+### 2.4.8
+#(a)
+```{r}
+library(ISLR)
+library(MASS)
+college = read.csv('College.csv',header=TRUE)
+```
+
+#(b)
+```{r}
+rownames(college) <- college[,1]
+View(college)
+college <- college[,-1]
+View(college)
+```
+
+#(c)
+```{r}
+summary(college)
+```
+
+```{r}
+college$Private<-as.factor(college$Private)
+pairs(college[,1:10])
+```
+
+```{r}
+plot(as.factor(college$Private), college$Outstate)
+```
+
+```{r}
+Elite <- rep('No', nrow(college))
+Elite[college$Top10perc > 50] <- 'Yes'
+Elite <- as.factor(Elite)
+college <- data.frame(college, Elite)
+summary(college)
+plot(as.factor(college$Elite),college$Outstate)
+```
+
+```{r}
+par(mfrow=c(2,2))
+hist(college$Apps, xlab='Apps', main='College Apps')
+hist(College$Accept, xlab='Accept', main='College Accept')
+hist(College$Enroll, xlab='Enroll', main='College Enroll')
+hist(College$Top10perc, xlab='Top10perc', main='College Top10perc')
+```
+
+###3.7.3
+#(a)
+The third assertion is right.
+We only consider the factors that is related to Level.
+That's $\hat{\beta_3}Level+\hat{\beta_5}GPA*Level$ = $35Level-10GPA*Level$.
+When GPA is above 3.5(high enough), the sum of these two factors for college graduates is negative while the sum for high school graduates is 0.
+So in this situation high school graduates earn more, on average, than college graduates.
+
+#(b)
+We have the formula as $$Salary=\hat{\beta_0}+\hat{\beta_1}GPA+\hat{\beta_2}IQ+\hat{\beta_3}Level+\hat{\beta_4}GPA*IQ+\hat{\beta_5}GPA*Level$$
+$$=50+20GPA+0.07IQ+35Level+0.01GPA*IQ-10GPA*Level$$
+With $GPA=4.0,IQ=110,Level=1$, the final prediction for starting salary is 137.1 thousand dollars(137100 dollars)
+#(c)
+False. Actually the value of IQ is rather high, about 30 times of GPA, which makes the coefficient rather small. This interaction factor is much smaller than the linear GPA factor, but still not minor to the final result.
+
+### 3.7.9
+#(a)
+```{r}
+pairs(Auto)
+```
+#(b)
+```{r}
+head(Auto)
+auto<-Auto[,-9]
+cor(auto)
+```
+
+#(c)
+```{r}
+model = lm(mpg~.,data=auto)
+summary(model)
+```
+(1) Yes there is a relationship between the predictors and the response because the F-stat is big enough and there are significant predictors.
+(2) Displacement, weight, year, origin.
+(3) On average, with increase of one year, the increase of mpg is about 0.75.
+
+#(d)
+```{r}
+plot(model)
+```
+When the quantile increases to a large value, the model loses normality.
+Yes there are large outliers according to residual plots.
+Yes there are high leverage points according to leverage plot.
+#(e)
+```{r}
+model1<-lm(mpg~.+displacement*weight,data=auto)
+summary(model1)
+model2<-lm(mpg~.+weight*year,data=auto)
+summary(model2)
+model3<-lm(mpg~.+year*origin,data=auto)
+summary(model3)
+```
+From the above 3 models, we can see that there are statistically significant interactions between displacement and weight, weight and year, year and origin.
+
+#(f)
+```{r}
+model4<-lm(mpg~.-cylinders+log(cylinders),data=auto)
+summary(model4)
+model5<-lm(mpg~.-cylinders+sqrt(cylinders),data=auto)
+summary(model5)
+model6<-lm(mpg~.-cylinders+cylinders^2,data=auto)
+summary(model6)
+```
+Transformations can change the minor variables into significant variables. And in this situation log function is the most suitable for the variable of cylinders.
+
+### 3.7.10
+#(a)
+```{r}
+model7<-lm(Sales~Price+Urban+US,data=Carseats)
+summary(model7)
+```
+
+#(b)
+With the increase of one unit for price, sales is reduced by 0.054459 unit on average.
+Sales in urban stores is lower than that in non-urban stores by 0.021916.
+Sales in US is higher than that not in US by 1.200573.
+
+#(c)
+$$Sales=\begin{cases}14.222126-0.054459*Price&Urban, US\\14.244042-0.054459*Price&Non-urban,US\\13.021553-0.054459*Price&Urban,not\ in\ US\\13.043469-0.054459*Price&Non-urban,not\ in\ US\end{cases}$$
+
+### 3.7.14
+#(a)
+```{r}
+set.seed(1)
+x1<-runif(100)
+x2<-0.5*x1+rnorm(100)/10
+y<-2+2*x1+0.3*x2+rnorm(100)
+```
+$$y=2+2x_1+0.3x_2+\epsilon$$
+$$\hat{\beta_0}=2,\hat{\beta_1}=2,\hat{\beta_2}=0.3$$
+#(b)
+```{r}
+plot(x1,x2)
+```
+
+#(c)
+```{r}
+mydata=data.frame(x1=x1,x2=x2,y=y)
+model8<-lm(y~.,data=mydata)
+summary(model8)
+```
+$\hat{\beta_0}=2.1305,\hat{\beta_1}=1.4396,\hat{\beta_2}=1.0097$
+Actually there bias from the computed coefficients to the true coefficients.
+Yes we can reject the null hypothesis $H_0:\beta_1=0$.
+No we cannot reject the null hypothesis $H_0:\beta_2=0$.
+
+#(d)
+```{r}
+model9<-lm(y~x1,data=mydata)
+summary(model9)
+```
+Yes we can reject the hypothesis.
+#(e)
+```{r}
+model10<-lm(y~x2,data=mydata)
+summary(model10)
+```
+Yes we can reject the hypothesis.
+
+#(f)
+(c) and (e) are seemingly contradicted. Actually in (c) x_1 plays a more important role in the model such that x_2 are minor. In (e) x_2 is the only variable and actually x_1 and x_2 can be mapped with a one-to-one mapping with small error. So x_2 is significant in the 3rd model.
+
+#(g)
+```{r}
+x1_new<-c(x1, 0.1)
+x2_new<-c(x2, 0.8)
+y_new<-c(y,6)
+mydata_new=data.frame(x1=x1_new,x2=x2_new,y=y_new)
+```
+
+```{r}
+model11<-lm(y~.,data=mydata_new)
+summary(model11)
+plot(model11)
+```
+
+```{r}
+model12<-lm(y~x1,data=mydata_new)
+summary(model12)
+plot(model12)
+```
+
+```{r}
+model13<-lm(y~x2,data=mydata_new)
+summary(model13)
+plot(model13)
+```
+For the 1st model, the observation changes the first-order coefficients largely. 
+For the 2nd model, the observation changes the first-order coefficients somehow.
+For the 3rd model, the observation changes the first-order coefficients somehow.
+
+Actually this observation is a high-leverage point for the 1st and 3rd models and a outlier point for the 2nd model.

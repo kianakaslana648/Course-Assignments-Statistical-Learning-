@@ -1,0 +1,92 @@
+### 1
+```{r}
+library(ISLR)
+library(leaps)
+library(tidyverse)
+data(Weekly)
+summary(Weekly)
+```
+```{r}
+models=regsubsets(Volume~.,Weekly,nvmax = 8)
+summary(models)
+```
+
+##(a)
+```{r}
+sum = summary(models)
+par(mfrow=c(2,2))
+plot(sum$rss,xlab='Number of Variables',ylab='RSS',type='l')
+plot(sum$adjr2,xlab='Number of Variables',ylab='Adjusted RSq')
+m=which.max(sum$adjr2)
+points(m,sum$adjr2[m],col='red',cex=2,pch=20)
+```
+##(b)
+```{r}
+plot(sum$adjr2,xlab='Number of Variables',ylab='Adjusted Rsq',ylim=c(0.70,0.72))
+m=which.max(sum$adjr2)
+n=which.max(sum$rsq)
+points(m,sum$adjr2[m],col='red',cex=2,pch=20)
+points(sum$rsq)
+points(n,sum$rsq[n],col='red',cex=5,pch=4)
+```
+
+##(c)
+```{r}
+set.seed(688)
+train=sample(c(TRUE,FALSE), nrow(Weekly),rep=TRUE)
+test=(!train)
+```
+
+```{r}
+models_train=regsubsets(Volume~.,data=Weekly[train,],nvmax=8)
+test_X=model.matrix(Volume~.,data=Weekly[test,])
+```
+
+```{r}
+errors=rep(NA,8)
+for(i in 1:8){
+  coefi=coef(models_train,id=i)
+  pred=test_X[,names(coefi)]%*%coefi
+  errors[i]=mean((Weekly$Volume[test]-pred)^2)
+}
+```
+
+```{r}
+errors
+m=which.min(errors)
+m
+coef(models_train,m)
+```
+
+Comment: In this case I would like to trust in Cp, BIC, Adjr2. The result of cross-validation returns the best model with only one variable, which could be confusing.
+
+##(d)
+
+# Cp
+```{r}
+plot(models,scale='Cp')
+```
+
+# BIC
+```{r}
+plot(models,scale='bic')
+```
+
+# adjr2
+
+```{r}
+plot(models,scale='adjr2')
+```
+
+
+Comment: BIC is obviouly different from the other two because it uses a stricter penalty for the number of variables.
+
+In cp, the best model has 6 variables (besides the intercept) of Year1, Lag1, Lag2, Lag3, Lag4, Lag5.
+
+In bic, the best model has 3 variables (besides the intercept) of Year1, Lag2, Lag3.
+
+In adjr2, the best model has 6 variables (besides the intercept) of Year1, Lag1, Lag2, Lag3, Lag4, Lag5.
+
+
+###(2)
+The advantage of cross-validation is that we can avoid computing $\hat{\sigma}^2$ in the full model. The downsides of it is that when using k-fold cross-validation or LOOCV, it's time-consuming.
