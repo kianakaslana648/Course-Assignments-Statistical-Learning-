@@ -1,6 +1,6 @@
 # Course-Assignments-Statistical-Learning
 
-## Course Assignments of ANLY512 Statistical Learning at Georgetown University
+## Course Assignments of ANLY512(Statistical Learning) at Georgetown University
 
 ### Topics
 $\quad$• Multiple Linear Regression, Logistic Regression, Linear Model Selection, Polynomial Regression
